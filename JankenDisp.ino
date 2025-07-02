@@ -24,12 +24,7 @@
 #define MODE_LED4_PIN 6
 
 // 時間に関するdefine
-#define ANNOTATION_SHOW_COUNT 200 // この値×10[ms]でアノテーションが消える
-
-#define AREA_LABEL 1
-#define AREA_MODE 2
-#define AREA_ANNOTATION 4
-#define AREA_ALL 7
+#define ANNOTATION_SHOW_COUNT 300 // この値×10[ms]でアノテーションが消える
 
 enum class OperationMode
 {
@@ -45,7 +40,7 @@ void TC3_Handler()
 }
 
 uint16_t RGB2BGR(uint16_t rgb16);
-void DrawScreen(enum class OperationMode mode, uint8_t area = AREA_ALL);
+void DrawScreen(enum class OperationMode mode);
 void ModeLEDOn(enum class OperationMode mode);
 void ModeCheck();
 void DoModeChangedProc();
@@ -110,7 +105,7 @@ void setup() {
   SerialOutFlag_ = false;
   AnnotationEraseFlag_ = false;;
 
-  DrawScreen(OperationMode::System, AREA_ALL);
+  DrawScreen(OperationMode::System);
   ModeLEDOn(OperationMode::System);
 }
 
@@ -134,7 +129,7 @@ void loop() {
   }
 }
 
-void DrawScreen(enum class OperationMode mode, uint8_t area)
+void DrawScreen(enum class OperationMode mode)
 {
   uint16_t bgColor = 0;
   uint16_t wallpapaerColor = disp_.color565(0, 0, 20);
@@ -155,56 +150,43 @@ void DrawScreen(enum class OperationMode mode, uint8_t area)
       modeName = "Move";
       break;
     case OperationMode::Jump:
-      bgColor =  disp_.color565(0, 0, 128);
+      bgColor = disp_.color565(0, 0, 128);
       modeName = "Jump";
       break;
   }
 
   // 全体背景
-  if(area == AREA_ALL)
-    disp_.fillScreen(RGB2BGR(wallpapaerColor)); // ネイビーブルー
+  disp_.fillScreen(RGB2BGR(wallpapaerColor)); // ネイビーブルー
 
-  if((area & AREA_LABEL) == AREA_LABEL)
-  {
-    // ラベル「Mode」
-    disp_.setTextColor(RGB2BGR(ST77XX_WHITE));
-    disp_.setCursor(0, 0);
-    disp_.setTextSize(2);
-    disp_.print("Mode");
-    disp_.drawLine(0, 19, 160, 19, RGB2BGR(ST77XX_WHITE));
-  }
+  // ラベル「Mode」の描画
+  disp_.setTextColor(RGB2BGR(ST77XX_WHITE));
+  disp_.setCursor(6, 8);
+  disp_.setTextSize(1);
+  disp_.print("Mode");
+  disp_.drawLine(0, 19, 160, 19, RGB2BGR(ST77XX_WHITE));
 
-  if((area & AREA_MODE) == AREA_MODE)
-  {
-    // モード名の描画
-    int16_t x1, y1; // 実際には利用しない
-    uint16_t w, h;
-    disp_.fillRect(0, 20, 160, 40, RGB2BGR(bgColor));
-    disp_.setTextSize(3);
-    disp_.getTextBounds(modeName, 0, 0, &x1, &y1, &w, &h);
-    int16_t x = (disp_.width() - w) / 2;
-    int16_t y = (disp_.height() - h) / 2;
-    disp_.setCursor(x, y);
-    disp_.print(modeName);
-    disp_.drawLine(0, 61, 160, 61, RGB2BGR(ST77XX_WHITE));
-  }
+  // モード名の描画
+  int16_t x1, y1; // 実際には利用しない
+  uint16_t w, h;
+  disp_.fillRect(0, 20, 160, 40, RGB2BGR(bgColor));
+  disp_.setTextSize(3);
+  disp_.getTextBounds(modeName, 0, 0, &x1, &y1, &w, &h);
+  int16_t x = (disp_.width() - w) / 2;
+  int16_t y = (disp_.height() - h) / 2;
+  disp_.setCursor(x, y);
+  disp_.print(modeName);
+  disp_.drawLine(0, 61, 160, 61, RGB2BGR(ST77XX_WHITE));
 
-  // 「is selected.」の描画、ANNOTATION_SHOW_COUNTで設定した時間後に消える
-  if((area & AREA_ANNOTATION) == AREA_ANNOTATION)
-  {
-    disp_.fillRect(0, 62, 160, 80, RGB2BGR(wallpapaerColor));
+  disp_.fillRect(0, 62, 160, 80, RGB2BGR(wallpapaerColor));
 
-    int16_t x1, y1;
-    uint16_t w, h;
-    String msg = "is Selected.";
-    
-    disp_.setTextSize(1);
-    disp_.getTextBounds(msg, 0, 0, &x1, &y1, &w, &h);
-    int16_t x = disp_.width() - w;
-    int16_t y = disp_.height() - h;
-    disp_.setCursor(x, y);
-    disp_.print(msg);
-  }
+  // アノテーションの描画
+  String msg = "is Selected.";
+  disp_.setTextSize(1);
+  disp_.getTextBounds(msg, 0, 0, &x1, &y1, &w, &h);
+  x = disp_.width() - 4 - w;
+  y = disp_.height() - 6 - h;
+  disp_.setCursor(x, y);
+  disp_.print(msg);
 }
 
 uint16_t RGB2BGR(uint16_t rgb16)
@@ -262,19 +244,19 @@ void DoModeChangedProc()
   switch(selectedMode_ & 0x3)
   {
     case static_cast<int>(OperationMode::System):
-      DrawScreen(OperationMode::System, AREA_ALL);
+      DrawScreen(OperationMode::System);
       ModeLEDOn(OperationMode::System);
       break;
     case static_cast<int>(OperationMode::Camera):
-      DrawScreen(OperationMode::Camera, AREA_ALL);
+      DrawScreen(OperationMode::Camera);
       ModeLEDOn(OperationMode::Camera);
       break;
     case static_cast<int>(OperationMode::Move):
-      DrawScreen(OperationMode::Move, AREA_ALL);
+      DrawScreen(OperationMode::Move);
       ModeLEDOn(OperationMode::Move);
       break;
     case static_cast<int>(OperationMode::Jump):
-      DrawScreen(OperationMode::Jump, AREA_ALL);
+      DrawScreen(OperationMode::Jump);
       ModeLEDOn(OperationMode::Jump);
       break;
     default:
