@@ -5,9 +5,14 @@
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 #include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
+#include <efontEnableJaMini.h>
+#include <efont.h>
 #include <SPI.h>
 
 #include <Adafruit_ZeroTimer.h>
+
+#define SCREEN_WIDTH 160
+#define SCREEN_WIDTH 80
 
 // 各ピンの定義
 #define DISP_CS_PIN 10
@@ -133,25 +138,25 @@ void DrawScreen(enum class OperationMode mode)
 {
   uint16_t bgColor = 0;
   uint16_t wallpapaerColor = disp_.color565(0, 0, 20);
-  String modeName = "";
+  char modeName[16]; // モード名は最大全角5文字+'\0'、1文字あたり3バイト計算、4バイトの拡張漢字は考慮しない
 
   switch(mode)
   {
     case OperationMode::System:
       bgColor = disp_.color565(128, 128, 0);
-      modeName = "System";
+      strcpy(modeName, "システム");
       break;
     case OperationMode::Camera:
       bgColor = disp_.color565(128, 0, 0);
-      modeName = "Camera";
+      strcpy(modeName, "カメラ");
       break;
     case OperationMode::Move:
       bgColor = disp_.color565(0, 128, 0);
-      modeName = "Move";
+      strcpy(modeName, "移　動");
       break;
     case OperationMode::Jump:
       bgColor = disp_.color565(0, 0, 128);
-      modeName = "Jump";
+      strcpy(modeName, "ジャンプ");
       break;
   }
 
@@ -174,7 +179,13 @@ void DrawScreen(enum class OperationMode mode)
   int16_t x = (disp_.width() - w) / 2;
   int16_t y = (disp_.height() - h) / 2;
   disp_.setCursor(x, y);
-  disp_.print(modeName);
+  //disp_.print(modeName);
+
+  int16_t scale = 2;
+  // 横開始位置は自前で計算
+  int posX = CalcRightPosition(scale, modeName);
+  printEfont(posX, 24, scale, RGB2BGR(ST77XX_WHITE), RGB2BGR(bgColor), modeName);
+
   disp_.drawLine(0, 61, 160, 61, RGB2BGR(ST77XX_WHITE));
 
   disp_.fillRect(0, 62, 160, 80, RGB2BGR(wallpapaerColor));
@@ -306,4 +317,86 @@ void ModeLEDOn(OperationMode mode)
     default:
       break;
   }
+}
+
+//efont 文字列をビデオに表示する
+//**********************************************************************************************
+void printEfont(int16_t x,int16_t y,int16_t txtsize,uint16_t color,uint16_t bgcolor,char *str) {
+  int posX = x;
+  int posY = y;
+  int16_t textsize = txtsize;
+  uint16_t textcolor = color;
+  uint16_t textbgcolor = bgcolor;
+  byte font[32];
+  while( *str != 0x00 ){
+    // 改行処理
+    if( *str == '\n' ){
+      // 改行
+      posY += 16 * textsize;
+      posX += 16 * textsize;
+      str++;
+      continue;
+    }
+    // フォント取得
+    uint16_t strUTF16;
+    str = efontUFT8toUTF16( &strUTF16, str );
+    getefontData( font, strUTF16 );
+    // 文字横幅
+    int width = 16 * textsize;
+    if( strUTF16 < 0x0100 ){
+      // 半角
+      width = 8 * textsize;
+    }
+    // 背景塗りつぶし
+    disp_.fillRect(posX, posY, width, 16 * textsize, textbgcolor);
+    // 取得フォントの確認
+    for (uint8_t row = 0; row < 16; row++) {
+      word fontdata = font[row*2] * 256 + font[row*2+1];
+      for (uint8_t col = 0; col < 16; col++) {
+
+        if( (0x8000 >> col) & fontdata ){
+          int drawX = posX + col * textsize;
+          int drawY = posY + row * textsize;
+          if( textsize == 1 ){
+            disp_.drawPixel(drawX, drawY, textcolor);
+          } else {
+            disp_.fillRect(drawX, drawY, textsize, textsize, textcolor);
+          }
+        }
+      }
+
+    }
+    // 描画カーソルを進める
+    posX += width;
+    
+    // 折返しは無効にした
+    // 折返し処理
+    if( SCREEN_WIDTH <= posX ){ 
+      //posX = 0;
+      //posY += 16 * textsize;
+    }
+  }
+  // カーソルを更新
+  disp_.setCursor(posX, posY);
+}
+
+int16_t CalcRightPosition(uint16_t scale, char* name)
+{
+  const int screenW = 160;
+  const int charW = 16 * scale;
+
+  int n = strlen(name) / 3; // 全角文字限定、1文字3バイト
+
+  int x;
+
+  if(n >= 10)
+  {
+    x = 0; 
+  }
+  else
+  {
+    x = (screenW - n * charW) / 2;
+  }
+
+  return x;
 }
