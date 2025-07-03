@@ -143,11 +143,11 @@ void DrawScreen(enum class OperationMode mode)
   switch(mode)
   {
     case OperationMode::System:
-      bgColor = disp_.color565(128, 128, 0);
+      bgColor = disp_.color565(128, 0, 128);
       strcpy(modeName, "システム");
       break;
     case OperationMode::Camera:
-      bgColor = disp_.color565(128, 0, 0);
+      bgColor = disp_.color565(200, 0, 0);
       strcpy(modeName, "カメラ");
       break;
     case OperationMode::Move:
@@ -371,31 +371,63 @@ void printEfont(int16_t x,int16_t y,int16_t txtsize,uint16_t color,uint16_t bgco
     
     // 折返しは無効にした
     // 折返し処理
-    if( SCREEN_WIDTH <= posX ){ 
-      //posX = 0;
-      //posY += 16 * textsize;
-    }
+    //if( SCREEN_WIDTH <= posX ){ 
+    //  posX = 0;
+    //  posY += 16 * textsize;
+    //}
   }
   // カーソルを更新
   disp_.setCursor(posX, posY);
 }
 
+size_t utf8_strlen(const char* str, int* nZen, int* nHan)
+{
+  size_t len = 0;
+  *nZen = 0; 
+  *nHan = 0;
+  while (*str) {
+    unsigned char c = (unsigned char)*str;
+    if ((c & 0x80) == 0) {
+      // ASCII（1バイト）
+      str++;
+      (*nHan)++;
+    } else if ((c & 0xE0) == 0xC0) {
+      // 2バイト文字（キリル文字やヘブライ文字など）
+      str += 2;
+    } else if ((c & 0xF0) == 0xE0) {
+      // 3バイト文字（ひらがな・漢字）
+      str += 3;
+      (*nZen)++;
+    } else if ((c & 0xF8) == 0xF0) {
+      // 4バイト文字（絵文字など）
+      str += 4;
+    } else {
+      // 無効なUTF-8
+      str++;
+    }
+    len++;
+  }
+  return len;
+}
+
 int16_t CalcRightPosition(uint16_t scale, char* name)
 {
   const int screenW = 160;
-  const int charW = 16 * scale;
+  const int charZenW = 16 * scale;
+  const int charHanW = 8 * scale;
 
-  int n = strlen(name) / 3; // 全角文字限定、1文字3バイト
+  int nHan, nZen;
+  utf8_strlen(name, &nZen, &nHan);
 
   int x;
 
-  if(n >= 10)
+  if(nHan + nZen * 2 >= 10)
   {
     x = 0; 
   }
   else
   {
-    x = (screenW - n * charW) / 2;
+    x = (screenW - nZen * charZenW - nHan * charHanW) / 2;
   }
 
   return x;
