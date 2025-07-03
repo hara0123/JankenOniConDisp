@@ -1,0 +1,5 @@
+**コントローラでLED出力とディスプレイ表示を担うSAMD21Mini Breakoutのプロジェクト**
+
+入力と通信を担う部分はArduino Micro向けの別プロジェクトが行う。
+
+リポジトリの名前はJankenOniConDispだが、スケッチ名はJankenDisp。
