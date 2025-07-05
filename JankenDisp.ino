@@ -14,6 +14,13 @@
 #define SCREEN_WIDTH 160
 #define SCREEN_WIDTH 80
 
+// モード名はここで設定
+// 各モードの背景色はDrawScreen関数内でハードコーディング
+#define MODE1_NAME "カメラ"
+#define MODE2_NAME "移　動"
+#define MODE3_NAME "ダッシュ"
+#define MODE4_NAME "ジャンプ"
+
 // 各ピンの定義
 #define DISP_CS_PIN 10
 #define DISP_RST_PIN 8
@@ -29,11 +36,11 @@
 #define MODE_LED4_PIN 6
 
 // 時間に関するdefine
-#define ANNOTATION_SHOW_COUNT 300 // この値×10[ms]でアノテーションが消える
+#define ANNOTATION_SHOW_COUNT 250 // この値×10[ms]でアノテーションが消える
 
 enum class OperationMode
 {
-  System, Camera, Move, Jump
+  Camera, Move, Dash, Jump
 };
 
 Adafruit_ST7735 disp_ = Adafruit_ST7735(DISP_CS_PIN, DISP_DC_PIN, DISP_RST_PIN);
@@ -110,8 +117,8 @@ void setup() {
   SerialOutFlag_ = false;
   AnnotationEraseFlag_ = false;;
 
-  DrawScreen(OperationMode::System);
-  ModeLEDOn(OperationMode::System);
+  DrawScreen(OperationMode::Camera);
+  ModeLEDOn(OperationMode::Camera);
 }
 
 void loop() {
@@ -142,21 +149,21 @@ void DrawScreen(enum class OperationMode mode)
 
   switch(mode)
   {
-    case OperationMode::System:
-      bgColor = disp_.color565(128, 0, 128);
-      strcpy(modeName, "システム");
-      break;
     case OperationMode::Camera:
-      bgColor = disp_.color565(200, 0, 0);
-      strcpy(modeName, "カメラ");
+      bgColor = disp_.color565(128, 0, 128);
+      strcpy(modeName, MODE1_NAME);
       break;
     case OperationMode::Move:
+      bgColor = disp_.color565(200, 0, 0);
+      strcpy(modeName, MODE2_NAME);
+      break;
+    case OperationMode::Dash:
       bgColor = disp_.color565(0, 128, 0);
-      strcpy(modeName, "移　動");
+      strcpy(modeName, MODE3_NAME);
       break;
     case OperationMode::Jump:
       bgColor = disp_.color565(0, 0, 128);
-      strcpy(modeName, "ジャンプ");
+      strcpy(modeName, MODE4_NAME);
       break;
   }
 
@@ -254,10 +261,6 @@ void DoModeChangedProc()
 {
   switch(selectedMode_ & 0x3)
   {
-    case static_cast<int>(OperationMode::System):
-      DrawScreen(OperationMode::System);
-      ModeLEDOn(OperationMode::System);
-      break;
     case static_cast<int>(OperationMode::Camera):
       DrawScreen(OperationMode::Camera);
       ModeLEDOn(OperationMode::Camera);
@@ -265,6 +268,10 @@ void DoModeChangedProc()
     case static_cast<int>(OperationMode::Move):
       DrawScreen(OperationMode::Move);
       ModeLEDOn(OperationMode::Move);
+      break;
+    case static_cast<int>(OperationMode::Dash):
+      DrawScreen(OperationMode::Dash);
+      ModeLEDOn(OperationMode::Dash);
       break;
     case static_cast<int>(OperationMode::Jump):
       DrawScreen(OperationMode::Jump);
@@ -280,29 +287,31 @@ void DoSerialOutProc()
   SerialUSB.println(debugBuf_);
 }
 
+// "is selected."の表示を消す
 void DoAnnotationEraseProc()
 {
   uint16_t wallpapaerColor = disp_.color565(0, 0, 20);
   disp_.fillRect(0, 62, 160, 80, RGB2BGR(wallpapaerColor));
 }
 
+// 現在選択されているモードを表すLEDを点灯
 void ModeLEDOn(OperationMode mode)
 {
   switch(mode)
   {
-    case OperationMode::System:
+    case OperationMode::Camera:
       digitalWrite(MODE_LED1_PIN, HIGH);
       digitalWrite(MODE_LED2_PIN, LOW);
       digitalWrite(MODE_LED3_PIN, LOW);
       digitalWrite(MODE_LED4_PIN, LOW);
       break;
-    case OperationMode::Camera:
+    case OperationMode::Move:
       digitalWrite(MODE_LED1_PIN, LOW);
       digitalWrite(MODE_LED2_PIN, HIGH);
       digitalWrite(MODE_LED3_PIN, LOW);
       digitalWrite(MODE_LED4_PIN, LOW);
       break;
-    case OperationMode::Move:
+    case OperationMode::Dash:
       digitalWrite(MODE_LED1_PIN, LOW);
       digitalWrite(MODE_LED2_PIN, LOW);
       digitalWrite(MODE_LED3_PIN, HIGH);
@@ -380,6 +389,7 @@ void printEfont(int16_t x,int16_t y,int16_t txtsize,uint16_t color,uint16_t bgco
   disp_.setCursor(posX, posY);
 }
 
+// UTF8の文字数を数える
 size_t utf8_strlen(const char* str, int* nZen, int* nHan)
 {
   size_t len = 0;
